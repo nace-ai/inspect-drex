@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "inspect-drex"
+description = "An Inspect (UK AISI) scorer backed by Drex decision models from Nace"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11,<4.0"
+dynamic = ["version"]
+authors = [{ name = "Nace AI", email = "hello@nace.ai" }]
+keywords = ["inspect", "inspect-ai", "evals", "scorer", "llm-evaluation", "nace", "drex"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "nace-sdk>=0.4.0,<1.0.0",
+    "inspect-ai>=0.3.245",
+    "httpx>=0.27.0,<1.0.0",
+]
+
+[project.urls]
+Homepage = "https://console.nace.ai/docs"
+Repository = "https://github.com/nace-ai/inspect-drex"
+Issues = "https://github.com/nace-ai/inspect-drex/issues"
+Changelog = "https://github.com/nace-ai/inspect-drex/blob/main/CHANGELOG.md"
+
+[project.entry-points.inspect_ai]
+inspect_drex = "inspect_drex._registry"
+
+[dependency-groups]
+test = ["pytest>=8.3", "pytest-cov>=6.0", "pytest-asyncio>=0.24"]
+lint = ["ruff>=0.14"]
+
+[tool.hatch.version]
+path = "inspect_drex/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["inspect_drex"]
+
+[tool.pytest.ini_options]
+markers = [
+    "live: calls the real Drex API (needs NACE_API_KEY)",
+    "openrouter: calls Drex through OpenRouter (needs OPENROUTER_API_KEY, never NACE_API_KEY)",
+]
+addopts = "--strict-markers"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+branch = true
+source = ["inspect_drex"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "RUF", "SIM", "PT", "D"]
+ignore = ["D203", "D213", "D401", "D105", "D107"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"examples/**" = ["D", "T201"]

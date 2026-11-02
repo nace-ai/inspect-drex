@@ -1,0 +1,96 @@
+# Publishes inspect-drex to PyPI when an `inspect-drex-v*` tag is pushed.
+#
+# Releasing is deliberate: `git tag inspect-drex-v0.1.0 && git push origin inspect-drex-v0.1.0`.
+# A PyPI upload cannot be undone or replaced, so everything that can be checked runs
+# before the upload, and `workflow_dispatch` runs the same checks plus the build while
+# skipping the publish, so the pipeline can be rehearsed.
+name: Release
+
+on:
+  push:
+    tags: ["inspect-drex-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel: a half-finished release is worse than a queued one.
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Verify lockfile and install dependencies
+        run: uv sync --all-groups --locked --python 3.12
+
+      # The tag names the version users will get, so a tag that disagrees with the
+      # package is caught here rather than after an unrepeatable upload.
+      - name: Tag matches package version
+        if: github.event_name == 'push'
+        run: |
+          tag_version="${GITHUB_REF_NAME#inspect-drex-v}"
+          pkg_version="$(uv run python -c "from inspect_drex import __version__; print(__version__)")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "Tag ${GITHUB_REF_NAME} would publish $pkg_version, not $tag_version." >&2
+            echo "Bump inspect_drex/_version.py or retag before releasing." >&2
+            exit 1
+          fi
+          echo "Releasing inspect-drex $pkg_version"
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Offline tests
+        run: uv run pytest tests/unit_tests --cov
+
+      - name: Build distributions
+        run: uv build --out-dir dist
+
+      # The README becomes the PyPI project page; twine rejects markup PyPI cannot
+      # render, which is otherwise only discovered at upload time.
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inspect-drex-dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: verify
+    # Only a tag publishes; workflow_dispatch stops after verify.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Half of the Trusted Publishing identity, and where release reviewers get
+    # added later without touching this file.
+    environment: pypi
+    permissions:
+      # Trusted Publishing mints a short-lived token from this; no PyPI
+      # credential is stored in the repository.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: inspect-drex-dist
+          path: dist
+
+      # Pinned to a commit: anything running in this job can mint the PyPI token
+      # for inspect-drex. Update it deliberately when a new release is reviewed.
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
