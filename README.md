@@ -5,6 +5,8 @@ framework) that asks [Drex](https://console.nace.ai/docs) decision models from N
 sample's output meets your criteria. Drex answers typed questions and returns
 **probabilities**, so you can choose the pass threshold after the run instead of before it.
 
+**Also from Drex:** [Drex Browser Use](https://github.com/nace-ai/drex-browser-harness-pub), an AI browser agent and MCP server. One sentence fills a DoorDash cart in 16 moves.
+
 - Drex Max reads text, JSON and images. `drex-v2.0` reads text and JSON only.
 - Any other model id that Drex serves is passed through unchanged; there is no closed list.
 - The default model is `drex-max`, which moves to the newest flagship with each Drex release.
